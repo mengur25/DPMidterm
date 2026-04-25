@@ -1,0 +1,38 @@
+GIẢI THÍCH CHI TIẾT VIỆC ÁP DỤNG DESIGN PATTERN CHO YÊU CẦU 4 & 5
+===================================================================
+
+1. YÊU CẦU 4: Đăng ký nhận thông báo theo nhu cầu
+-------------------------------------------------------------------
+* Vấn đề ở phiên bản cũ (v1.0):
+  Trong file `DocumentProcessor.java`, logic gửi thông báo được code "cứng" (hardcode) trong hàm `sendNotifications()`. Hệ thống luôn gửi thông báo qua cả Email và SMS cho cả Người nộp và Cán bộ xử lý mỗi khi có sự thay đổi trạng thái hồ sơ. Nếu sau này hệ thống muốn thêm kênh thông báo mới (ví dụ: Zalo, App Push) hoặc người dùng muốn tùy chỉnh kênh nhận, ta sẽ phải sửa đổi trực tiếp vào hàm này. Việc này vi phạm nguyên tắc Open-Closed Principle (OCP) - mã nguồn nên được mở rộng, nhưng đóng lại đối với sự sửa đổi.
+
+* Pattern lựa chọn: Observer Pattern
+  - Lý do: Observer Pattern sinh ra để giải quyết bài toán "một sự thay đổi ở một đối tượng (Subject) cần thông báo cho nhiều đối tượng khác (Observers) mà không làm ràng buộc chặt chẽ các đối tượng này với nhau".
+  - Hướng giải quyết cụ thể:
+    + Tạo interface `NotificationObserver` quy định phương thức `update(Document document)`.
+    + Tạo các lớp cụ thể triển khai interface này: `EmailNotifier`, `SMSNotifier`, `AppPushNotifier`. Các lớp này định nghĩa cách thức gửi thông báo cụ thể.
+    + Tạo lớp `NotificationManager` (đóng vai trò Subject). Lớp này duy trì một danh sách (List) các `NotificationObserver` đã đăng ký (subscribe). Khi cần gửi thông báo, nó sẽ gọi phương thức `notifyAll()` để duyệt qua tất cả các Observer trong danh sách và kích hoạt hàm `update()`.
+    + Trong `DocumentProcessor`, ta loại bỏ hàm `sendNotifications()`, thay vào đó gọi `notificationManager.notifyAll(doc)`.
+  - Kết quả: Khi muốn thêm kênh thông báo mới (ví dụ: ZaloNotifier), ta chỉ cần viết thêm một class `ZaloNotifier implements NotificationObserver` và gọi hàm `subscribe()` tại nơi khởi tạo hệ thống (như trong `MainV2.java`). `DocumentProcessor` hoàn toàn không bị thay đổi mã nguồn.
+
+
+2. YÊU CẦU 5: Mở rộng khả năng lưu trữ dữ liệu
+-------------------------------------------------------------------
+* Vấn đề ở phiên bản cũ (v1.0):
+  Hàm `saveToStorage()` trong `DocumentProcessor.java` chứa toàn bộ logic tạo thư mục, thao tác copy file (I/O), chuyển đổi chuỗi JSON thủ công và ghi xuống ổ cứng (Local JSON). Nó vi phạm nguyên tắc Single Responsibility Principle (SRP) vì `DocumentProcessor` chỉ nên làm nhiệm vụ xét duyệt logic nghiệp vụ hồ sơ, chứ không phải thao tác cấp thấp với hệ thống file/database. Nếu sau này muốn lưu trữ vào Database hoặc Cloud S3, ta lại phải can thiệp trực tiếp vào file này.
+
+* Pattern lựa chọn: Strategy Pattern (hoặc Repository Pattern)
+  - Lý do: Strategy Pattern cho phép định nghĩa một tập hợp các thuật toán/hành vi, đóng gói từng hành vi lại và làm cho chúng có thể thay thế lẫn nhau (interchangeable) tại thời điểm chạy (runtime) mà không làm ảnh hưởng đến client (DocumentProcessor).
+  - Hướng giải quyết cụ thể:
+    + Tạo interface `DocumentStorage` quy định một hàm chung là `save(Document document)`.
+    + Tạo các lớp (Strategies) triển khai interface trên: `LocalJsonStorage` (logic lưu json cũ), `DatabaseStorage`, `CloudStorage`.
+    + Trong `DocumentProcessor`, thay vì gọi hàm `saveToStorage()` cục bộ, ta thêm một biến phụ thuộc (dependency) `DocumentStorage documentStorage`.
+    + Tiêm (Inject) lớp storage mong muốn vào `DocumentProcessor` qua constructor (Constructor Injection). Ở bước lưu trữ, chỉ cần gọi `documentStorage.save(doc);`
+  - Kết quả: Logic xử lý nghiệp vụ hồ sơ (`DocumentProcessor`) giờ đây hoàn toàn độc lập với cách hệ thống lưu trữ dữ liệu. Việc chuyển đổi qua lại giữa lưu Local, Database hay Cloud có thể dễ dàng thiết lập ở tệp cấu hình khởi chạy (`MainV2.java` hoặc `MainSwingUI.java`) mà mã lõi nghiệp vụ vẫn nguyên vẹn.
+
+
+TỔNG KẾT HƯỚNG CODE:
+-------------------------------------------------------------------
+- Toàn bộ mã nguồn mới đã được gom nhóm vào các package rõ ràng: `notification` và `storage`.
+- Các file `DocumentProcessor.java` và `MainSwingUI.java` đã được điều chỉnh lại để kết nối các Object theo thiết kế mới.
+- Đã bổ sung file `MainV2.java` nằm cùng cấp với file Main cũ nhằm giả lập và chứng minh cách khởi tạo, lắp ghép linh hoạt (Dependency Injection) của các Pattern mới. Bằng cách thay đổi vài dòng code ở mục cấu hình trong `MainV2.java`, ta dễ dàng đổi kênh thông báo hoặc nơi lưu trữ.
