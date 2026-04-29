@@ -26,25 +26,51 @@ public class MainV2 {
         // 3. Khởi tạo DocumentProcessor
         DocumentProcessor processor = new DocumentProcessor(notificationManager, storage);
 
-        // 4. Tạo Document giả định để xử lý
-        Document doc1 = new Document(
-            UUID.randomUUID().toString().substring(0, 8),
-            "Nguyen Van A", "nva@gmail.com", "0901234567",
-            "Can Bo B", "cbb@tdtu.edu.vn", "0987654321",
-            "DON_XIN_PHEP",
-            "dummy_path.txt", "txt", 1024,
-            "signature_abc123",
-            null, "MOI_TAO"
-        );
+        // 4. Khởi tạo Document từng bước (Yêu cầu 1: Builder Pattern)
+        System.out.println("\n--- BƯỚC 1: ĐIỀN THÔNG TIN CÁ NHÂN VÀ LƯU NHÁP ---");
+        String docId = UUID.randomUUID().toString().substring(0, 8);
+        Document.Builder builder = new Document.Builder()
+            .withId(docId)
+            .withApplicantInfo("Nguyen Van A", "nva@gmail.com", "0901234567")
+            .withDocumentType("DON_XIN_PHEP");
 
-        // Giả lập tạo 1 file dummy_path.txt để processor có thể đọc được
+        Document draft1 = builder.withStatus("NHAP").build();
+        System.out.println("-> " + draft1);
+
+        System.out.println("\n--- BƯỚC 2: TẢI TÀI LIỆU ĐÍNH KÈM VÀ LƯU NHÁP ---");
+        // Giả lập tạo 1 file dummy_path.pdf để processor có thể đọc được
         try {
-            java.io.FileWriter fw = new java.io.FileWriter("dummy_path.txt");
-            fw.write("Day la noi dung file dummy.");
+            java.io.FileWriter fw = new java.io.FileWriter("dummy_path.pdf");
+            fw.write("Day la noi dung file dummy PDF.");
             fw.close();
         } catch (Exception e) {}
 
+        builder.withFileInfo("dummy_path.pdf", "pdf", 1024)
+               .withOfficerInfo("Can Bo B", "cbb@tdtu.edu.vn", "0987654321");
+
+        Document draft2 = builder.withStatus("NHAP").build();
+        System.out.println("-> " + draft2);
+
+        System.out.println("\n--- BƯỚC 3: XÁC NHẬN VÀ NỘP HỒ SƠ ---");
+        builder.withSignatureAndContent("signature_abc123", null);
+        
+        Document finalDoc = builder.withStatus("MOI_TAO").build();
+        System.out.println("-> Hồ sơ đã hoàn tất khởi tạo. Đang gửi đi xử lý...");
+
         // 5. Chạy luồng xử lý
-        processor.process(doc1);
+        processor.process(finalDoc);
+
+        // Chạy thêm một hồ sơ giả định với ảnh PNG để kiểm thử ImageOcrExtractor
+        System.out.println("\n=== KIỂM THỬ XỬ LÝ ẢNH PNG ===");
+        Document imgDoc = new Document.Builder()
+            .withId("IMG9999")
+            .withApplicantInfo("Tran Thi C", "ttc@gmail.com", "0999999999")
+            .withOfficerInfo("Can Bo B", "cbb@tdtu.edu.vn", "0987654321")
+            .withDocumentType("HO_SO_THUE")
+            .withFileInfo("invoice.png", "png", 2048)
+            .withSignatureAndContent("sig_png", null)
+            .withStatus("MOI_TAO")
+            .build();
+        processor.process(imgDoc);
     }
 }

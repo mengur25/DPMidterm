@@ -19,10 +19,17 @@ public class AddDocumentDialog extends JDialog {
     private DocumentProcessor processor;
     private MainSwingUI parent;
 
+    private Document existingDraft;
+
     public AddDocumentDialog(MainSwingUI parent, DocumentProcessor processor) {
-        super(parent, "Tiếp nhận hồ sơ mới", true);
+        this(parent, processor, null);
+    }
+
+    public AddDocumentDialog(MainSwingUI parent, DocumentProcessor processor, Document existingDraft) {
+        super(parent, existingDraft == null ? "Tiếp nhận hồ sơ mới" : "Tiếp tục tạo hồ sơ nháp", true);
         this.parent = parent;
         this.processor = processor;
+        this.existingDraft = existingDraft;
         
         setSize(450, 550);
         setLocationRelativeTo(parent);
@@ -73,11 +80,28 @@ public class AddDocumentDialog extends JDialog {
         add(formPanel, BorderLayout.CENTER);
 
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnSaveDraft = new JButton("Lưu nháp");
         JButton btnSend = new JButton("Gửi");
         JButton btnCancel = new JButton("Hủy");
+        btnPanel.add(btnSaveDraft);
         btnPanel.add(btnSend);
         btnPanel.add(btnCancel);
         add(btnPanel, BorderLayout.SOUTH);
+
+        if (existingDraft != null) {
+            txtApplicantName.setText(existingDraft.applicantName);
+            txtApplicantEmail.setText(existingDraft.applicantEmail);
+            txtApplicantPhone.setText(existingDraft.applicantPhone);
+            txtOfficerName.setText(existingDraft.officerName);
+            txtOfficerEmail.setText(existingDraft.officerEmail);
+            txtOfficerPhone.setText(existingDraft.officerPhone);
+            cbDocumentType.setSelectedItem(existingDraft.documentType);
+            txtDigitalSignature.setText(existingDraft.digitalSignature);
+            if (existingDraft.filePath != null && !existingDraft.filePath.isEmpty()) {
+                selectedFile = new File(existingDraft.filePath);
+                lblFileName.setText(selectedFile.getName());
+            }
+        }
 
         btnFile.addActionListener(e -> {
             JFileChooser fc = new JFileChooser();
@@ -89,12 +113,12 @@ public class AddDocumentDialog extends JDialog {
 
         btnCancel.addActionListener(e -> dispose());
 
-        btnSend.addActionListener(e -> {
-            submitAction();
-        });
+        btnSaveDraft.addActionListener(e -> saveDraftAction());
+
+        btnSend.addActionListener(e -> submitAction());
     }
 
-    private void submitAction() {
+    private Document.Builder createBuilderFromForm() {
         String filePath = (selectedFile != null) ? selectedFile.getAbsolutePath() : "";
         String ext = "";
         long size = 0;
@@ -107,24 +131,45 @@ public class AddDocumentDialog extends JDialog {
             }
         }
 
-        Document doc = new Document(
-            UUID.randomUUID().toString().substring(0, 8),
-            txtApplicantName.getText().trim(),
-            txtApplicantEmail.getText().trim(),
-            txtApplicantPhone.getText().trim(),
-            txtOfficerName.getText().trim(),
-            txtOfficerEmail.getText().trim(),
-            txtOfficerPhone.getText().trim(),
-            cbDocumentType.getSelectedItem().toString(),
-            filePath, ext, size,
-            txtDigitalSignature.getText().trim(),
-            null, "MOI_TAO"
-        );
+        String docId = (existingDraft != null) ? existingDraft.id : UUID.randomUUID().toString().substring(0, 8);
+
+        return new Document.Builder()
+            .withId(docId)
+            .withApplicantInfo(txtApplicantName.getText().trim(), txtApplicantEmail.getText().trim(), txtApplicantPhone.getText().trim())
+            .withOfficerInfo(txtOfficerName.getText().trim(), txtOfficerEmail.getText().trim(), txtOfficerPhone.getText().trim())
+            .withDocumentType(cbDocumentType.getSelectedItem().toString())
+            .withFileInfo(filePath, ext, size)
+            .withSignatureAndContent(txtDigitalSignature.getText().trim(), null);
+    }
+
+    private void saveDraftAction() {
+        Document draftDoc = createBuilderFromForm()
+            .withStatus("NHAP")
+            .build();
+            
+        System.out.println("[HỆ THỐNG] Đã lưu nháp hồ sơ: " + draftDoc.id);
+        
+        if (existingDraft != null) {
+            parent.updateDocumentInList(existingDraft, draftDoc);
+        } else {
+            parent.addDocumentToList(draftDoc);
+        }
+        dispose();
+    }
+
+    private void submitAction() {
+        Document doc = createBuilderFromForm()
+            .withStatus("MOI_TAO")
+            .build();
 
         processor.process(doc);
 
         if ("DANG_XET_DUYET".equals(doc.status)) {
-            parent.addDocumentToList(doc);
+            if (existingDraft != null) {
+                parent.updateDocumentInList(existingDraft, doc);
+            } else {
+                parent.addDocumentToList(doc);
+            }
             dispose();
         } else {
             JOptionPane.showMessageDialog(this, "Hồ sơ không hợp lệ. Vui lòng kiểm tra lại log.", "Lỗi", JOptionPane.ERROR_MESSAGE);

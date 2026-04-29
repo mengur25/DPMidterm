@@ -1,7 +1,37 @@
-GIẢI THÍCH CHI TIẾT VIỆC ÁP DỤNG DESIGN PATTERN CHO YÊU CẦU 4 & 5
+GIẢI THÍCH CHI TIẾT VIỆC ÁP DỤNG DESIGN PATTERN CHO YÊU CẦU 1, 2, 4 & 5
 ===================================================================
 
-1. YÊU CẦU 4: Đăng ký nhận thông báo theo nhu cầu
+1. YÊU CẦU 1: Cho phép lưu nháp và nộp hồ sơ theo từng bước
+-------------------------------------------------------------------
+* Vấn đề ở phiên bản cũ (v1.0):
+  Trong file `Document.java`, phương thức khởi tạo (constructor) của bộ hồ sơ yêu cầu cung cấp toàn bộ 14 tham số cùng một lúc (từ thông tin người nộp, cán bộ, đến file đính kèm, chữ ký số). Điều này khiến việc "lắp ghép thông tin dần dần" (ví dụ: chỉ nhập thông tin cá nhân để lưu nháp, rồi sau đó mới upload file) gặp khó khăn. Quá trình tạo object bị cồng kềnh, dễ truyền sai thứ tự tham số và không hỗ trợ tính năng tạo hồ sơ qua nhiều giai đoạn.
+
+* Pattern lựa chọn: Builder Pattern
+  - Lý do: Builder Pattern sinh ra để giải quyết bài toán khởi tạo các đối tượng phức tạp gồm nhiều thành phần bằng cách chia nhỏ quá trình khởi tạo ra làm nhiều bước (step-by-step), đồng thời cung cấp các phương thức dễ đọc để thiết lập từng nhóm thuộc tính.
+  - Hướng giải quyết cụ thể:
+    + Bổ sung lớp `Builder` (static nested class) bên trong lớp `Document`.
+    + Cung cấp các phương thức thiết lập dữ liệu theo nhóm (ví dụ: `withApplicantInfo()`, `withFileInfo()`, `withStatus()`). Các phương thức này trả về chính đối tượng `Builder` (`return this;`) để cho phép gọi chuỗi liên tiếp (fluent interface).
+    + Cung cấp phương thức `build()` để cuối cùng trả về đối tượng `Document` hoàn chỉnh.
+    + Trên giao diện `AddDocumentDialog.java`, sử dụng `Document.Builder` để linh hoạt gom các thông tin hiện có tại thời điểm nhấn nút "Lưu nháp", thiết lập trạng thái `"NHAP"`, và không bắt buộc phải có đủ file/chữ ký.
+  - Kết quả: Code khởi tạo trở nên rõ ràng, sạch sẽ. Hệ thống dễ dàng tạo ra một bộ hồ sơ nháp chỉ với một vài thông tin cơ bản ban đầu, đáp ứng hoàn hảo yêu cầu nghiệp vụ lưu nháp và nộp hồ sơ theo từng bước.
+
+
+2. YÊU CẦU 2: Tích hợp khả năng đọc nhiều định dạng tài liệu
+-------------------------------------------------------------------
+* Vấn đề ở phiên bản cũ (v1.0):
+  Trong file `DocumentProcessor.java`, quá trình trích xuất nội dung bị "hardcode" (gắn cứng) chỉ hỗ trợ file có đuôi `.txt`. Hơn nữa, logic đọc file được viết trực tiếp bên trong tiến trình xử lý chính. Nếu sau này hệ thống muốn hỗ trợ đọc file `.pdf` hay ảnh `.jpg`, `.png` bằng AI OCR, việc thêm hàng loạt các câu lệnh `if-else` vào đây sẽ làm phình to mã nguồn, vi phạm nguyên tắc Open-Closed Principle (OCP) và Single Responsibility Principle (SRP).
+
+* Pattern lựa chọn: Strategy Pattern kết hợp Factory Method Pattern
+  - Lý do: Strategy Pattern giúp đóng gói từng thuật toán trích xuất (Text thường, PDF OCR, Image OCR) thành các lớp độc lập. Factory Method Pattern giúp tự động hóa việc chọn lựa thuật toán phân tích dựa trên loại file (phần mở rộng), tách biệt hoàn toàn logic khởi tạo khỏi luồng xử lý chính.
+  - Hướng giải quyết cụ thể:
+    + Tạo interface `DocumentExtractor` với phương thức chung `extractContent(String filePath)`.
+    + Tạo các lớp cụ thể thực thi interface này: `TextExtractor` (xử lý text cơ bản), `PdfOcrExtractor` (giả lập xử lý PDF), `ImageOcrExtractor` (giả lập xử lý ảnh AI OCR).
+    + Tạo lớp `DocumentExtractorFactory` có một phương thức tĩnh `getExtractor(String extension)`. Phương thức này sử dụng cấu trúc `switch-case` để phân tích phần mở rộng (txt, pdf, png, jpg) và trả về đúng đối tượng xử lý (Strategy).
+    + Trong `DocumentProcessor`, thay thế đoạn code đọc file cũ bằng việc gọi `DocumentExtractorFactory.getExtractor(doc.fileExtension)` để lấy về đúng công cụ trích xuất, sau đó gọi `extractContent()`.
+  - Kết quả: `DocumentProcessor` không còn quan tâm chi tiết bên trong thuật toán trích xuất hoạt động ra sao và đang hỗ trợ đuôi file gì. Khi cần thêm định dạng mới (ví dụ: `.docx`), ta chỉ cần tạo class `DocxExtractor` và cập nhật nhánh trong Factory mà không làm xáo trộn luồng mã cốt lõi.
+
+
+3. YÊU CẦU 4: Đăng ký nhận thông báo theo nhu cầu
 -------------------------------------------------------------------
 * Vấn đề ở phiên bản cũ (v1.0):
   Trong file `DocumentProcessor.java`, logic gửi thông báo được code "cứng" (hardcode) trong hàm `sendNotifications()`. Hệ thống luôn gửi thông báo qua cả Email và SMS cho cả Người nộp và Cán bộ xử lý mỗi khi có sự thay đổi trạng thái hồ sơ. Nếu sau này hệ thống muốn thêm kênh thông báo mới (ví dụ: Zalo, App Push) hoặc người dùng muốn tùy chỉnh kênh nhận, ta sẽ phải sửa đổi trực tiếp vào hàm này. Việc này vi phạm nguyên tắc Open-Closed Principle (OCP) - mã nguồn nên được mở rộng, nhưng đóng lại đối với sự sửa đổi.
@@ -16,7 +46,7 @@ GIẢI THÍCH CHI TIẾT VIỆC ÁP DỤNG DESIGN PATTERN CHO YÊU CẦU 4 & 5
   - Kết quả: Khi muốn thêm kênh thông báo mới (ví dụ: ZaloNotifier), ta chỉ cần viết thêm một class `ZaloNotifier implements NotificationObserver` và gọi hàm `subscribe()` tại nơi khởi tạo hệ thống (như trong `MainV2.java`). `DocumentProcessor` hoàn toàn không bị thay đổi mã nguồn.
 
 
-2. YÊU CẦU 5: Mở rộng khả năng lưu trữ dữ liệu
+4. YÊU CẦU 5: Mở rộng khả năng lưu trữ dữ liệu
 -------------------------------------------------------------------
 * Vấn đề ở phiên bản cũ (v1.0):
   Hàm `saveToStorage()` trong `DocumentProcessor.java` chứa toàn bộ logic tạo thư mục, thao tác copy file (I/O), chuyển đổi chuỗi JSON thủ công và ghi xuống ổ cứng (Local JSON). Nó vi phạm nguyên tắc Single Responsibility Principle (SRP) vì `DocumentProcessor` chỉ nên làm nhiệm vụ xét duyệt logic nghiệp vụ hồ sơ, chứ không phải thao tác cấp thấp với hệ thống file/database. Nếu sau này muốn lưu trữ vào Database hoặc Cloud S3, ta lại phải can thiệp trực tiếp vào file này.

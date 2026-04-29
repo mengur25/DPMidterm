@@ -39,7 +39,12 @@ public class MainSwingUI extends JFrame {
         setLocationRelativeTo(null);
 
         String[] columnNames = {"Mã hồ sơ", "Người nộp", "Loại hồ sơ", "Trạng thái", "Tập tin"};
-        tableModel = new DefaultTableModel(columnNames, 0);
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         documentTable = new JTable(tableModel);
         JScrollPane tableScrollPane = new JScrollPane(documentTable);
         tableScrollPane.setBorder(BorderFactory.createTitledBorder("Danh sách hồ sơ hệ thống"));
@@ -58,8 +63,14 @@ public class MainSwingUI extends JFrame {
 
         JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton btnAdd = new JButton("Thêm mới hồ sơ");
+        JButton btnEditDraft = new JButton("Tiếp tục tạo (Sửa nháp)");
+        JButton btnDeleteDraft = new JButton("Xóa nháp");
         JButton btnClear = new JButton("Xóa Log");
+        btnEditDraft.setEnabled(false);
+        btnDeleteDraft.setEnabled(false);
         toolBar.add(btnAdd);
+        toolBar.add(btnEditDraft);
+        toolBar.add(btnDeleteDraft);
         toolBar.add(btnClear);
         add(toolBar, BorderLayout.NORTH);
 
@@ -70,7 +81,46 @@ public class MainSwingUI extends JFrame {
         btnAdd.addActionListener(e -> {
             AddDocumentDialog dialog = new AddDocumentDialog(this, processor);
             dialog.setVisible(true);
-            refreshTable();
+        });
+
+        btnEditDraft.addActionListener(e -> {
+            int selectedRow = documentTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String docId = tableModel.getValueAt(selectedRow, 0).toString();
+                Document draftDoc = null;
+                for (Document doc : documentList) {
+                    if (doc.id.equals(docId)) {
+                        draftDoc = doc;
+                        break;
+                    }
+                }
+                if (draftDoc != null) {
+                    AddDocumentDialog dialog = new AddDocumentDialog(this, processor, draftDoc);
+                    dialog.setVisible(true);
+                }
+            }
+        });
+
+        btnDeleteDraft.addActionListener(e -> {
+            int selectedRow = documentTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String docId = tableModel.getValueAt(selectedRow, 0).toString();
+                int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc chắn muốn xóa bản nháp này không?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    Document toRemove = null;
+                    for (Document doc : documentList) {
+                        if (doc.id.equals(docId)) {
+                            toRemove = doc;
+                            break;
+                        }
+                    }
+                    if (toRemove != null) {
+                        documentList.remove(toRemove);
+                        refreshTable();
+                        System.out.println("[HỆ THỐNG] Đã xóa bản nháp hồ sơ: " + docId);
+                    }
+                }
+            }
         });
 
         btnClear.addActionListener(e -> consoleArea.setText(""));
@@ -79,6 +129,10 @@ public class MainSwingUI extends JFrame {
             if (!e.getValueIsAdjusting() && documentTable.getSelectedRow() != -1) {
                 int selectedRow = documentTable.getSelectedRow();
                 String docId = tableModel.getValueAt(selectedRow, 0).toString();
+                String status = tableModel.getValueAt(selectedRow, 3).toString();
+                
+                btnEditDraft.setEnabled("NHAP".equals(status));
+                btnDeleteDraft.setEnabled("NHAP".equals(status));
                 
                 for (Document doc : documentList) {
                     if (doc.id.equals(docId)) {
@@ -93,6 +147,9 @@ public class MainSwingUI extends JFrame {
                         break;
                     }
                 }
+            } else if (documentTable.getSelectedRow() == -1) {
+                btnEditDraft.setEnabled(false);
+                btnDeleteDraft.setEnabled(false);
             }
         });
     }
@@ -157,6 +214,17 @@ public class MainSwingUI extends JFrame {
 
     public void addDocumentToList(Document doc) {
         documentList.add(doc);
+        refreshTable();
+    }
+
+    public void updateDocumentInList(Document oldDoc, Document newDoc) {
+        int index = documentList.indexOf(oldDoc);
+        if (index != -1) {
+            documentList.set(index, newDoc);
+        } else {
+            documentList.add(newDoc);
+        }
+        refreshTable();
     }
 
     private void refreshTable() {

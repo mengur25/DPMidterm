@@ -49,19 +49,22 @@ public class DocumentProcessor {
             return;
         }
 
-        if (!doc.fileExtension.equalsIgnoreCase("txt")) {
-            System.out.println("[TỪ CHỐI] Định dạng " + doc.fileExtension + " không được hỗ trợ ở v1.0.");
+        System.out.println("[TRÍCH XUẤT] Đang chọn công cụ đọc phù hợp với định dạng " + doc.fileExtension + "...");
+        vn.edu.tdtu.edocument.extractor.DocumentExtractor extractor = 
+            vn.edu.tdtu.edocument.extractor.DocumentExtractorFactory.getExtractor(doc.fileExtension);
+
+        if (extractor == null) {
+            System.out.println("[TỪ CHỐI] Định dạng " + doc.fileExtension + " chưa được hỗ trợ trích xuất.");
             doc.status = "TU_CHOI";
             notificationManager.notifyAll(doc);
             return;
         }
 
-        System.out.println("[TRÍCH XUẤT] Đang đọc nội dung tệp đính kèm...");
         try {
-            String content = new String(Files.readAllBytes(Paths.get(doc.filePath)));
+            String content = extractor.extractContent(doc.filePath);
             doc.extractedContent = content;
-        } catch (IOException e) {
-            System.out.println("[LỖI] Không thể đọc nội dung file: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("[LỖI] Trích xuất nội dung thất bại: " + e.getMessage());
             doc.status = "TU_CHOI";
             notificationManager.notifyAll(doc);
             return;
