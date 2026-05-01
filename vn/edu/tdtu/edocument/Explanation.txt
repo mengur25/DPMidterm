@@ -66,3 +66,27 @@ TỔNG KẾT HƯỚNG CODE:
 - Toàn bộ mã nguồn mới đã được gom nhóm vào các package rõ ràng: `notification` và `storage`.
 - Các file `DocumentProcessor.java` và `MainSwingUI.java` đã được điều chỉnh lại để kết nối các Object theo thiết kế mới.
 - Đã bổ sung file `MainV2.java` nằm cùng cấp với file Main cũ nhằm giả lập và chứng minh cách khởi tạo, lắp ghép linh hoạt (Dependency Injection) của các Pattern mới. Bằng cách thay đổi vài dòng code ở mục cấu hình trong `MainV2.java`, ta dễ dàng đổi kênh thông báo hoặc nơi lưu trữ.
+
+
+
+5. YÊU CẦU 3: Quy trình kiểm duyệt linh hoạt với Chain of Responsibility
+-------------------------------------------------------------------
+* Vấn đề ở phiên bản cũ (v1.0):
+  Logic kiểm tra cũ (check dung lượng, định dạng file) bị viết dưới dạng các khối `if-else` trực tiếp ngay trong hàm process ở `DocumentProcessor.java`.
+  - Khó bảo trì: Mỗi khi cần thêm một bước kiểm tra mới (như quét mã độc hay kiểm tra trùng lặp), buộc phải sửa trực tiếp vào hàm process là luồng xử lý chính, điều này vi phạm nguyên tắc Đóng/Mở (Open-Closed Principle).
+  - Kết dính cao: Các bước kiểm tra bị "gắn chết" vào nhau. Nếu muốn thay đổi thứ tự kiểm tra hoặc bỏ bớt một bước, mã nguồn rất dễ bị lỗi dây chuyền.
+  - Vi phạm SRP: Lớp xử lý nghiệp vụ chính không nên phải ôm thêm cả mớ logic kiểm tra chi tiết về định dạng hay dung lượng.
+
+* Pattern lựa chọn: Chain of Responsibility (Chuỗi trách nhiệm)
+  - Lý do: Pattern này cho phép tách rời các bước kiểm duyệt thành những "trạm" độc lập. Hồ sơ sẽ đi dọc theo một đường ống, lỗi ở trạm nào thì ngắt luồng tại đó, giúp việc quản lý luồng kiểm duyệt linh hoạt hơn rất nhiều.
+  - Hướng giải quyết cụ thể:
+    + Xây dựng lớp trừu tượng `ValidationHandler` làm khung sườn cho các trạm, sử dụng phương thức `setNext()` để kết nối các trạm thành một chuỗi liên kết.
+    + Chia nhỏ các logic kiểm tra thành 3 lớp riêng biệt:
+        * `BasicValidationHandler`:  Xử lý các lỗi mang tính kỹ thuật cơ bản như Email không đúng định dạng (dùng Regex), tệp không tồn tại vật lý, hoặc sai kích thước/định dạng cho phép.
+        * `SecurityValidationHandler`: Giả lập bộ lọc Antivirus để chặn các tệp nghi vấn mã độc.
+        * `IntegrityValidationHandler`: Đảm bảo tính toàn vẹn và chống tình trạng nộp trùng hồ sơ (check ID).
+    + Tối ưu hóa với Unchecked Exception: cho `ValidationException` kế thừa `RuntimeException`. Khi một trạm phát hiện lỗi, nó sẽ ném lỗi để ngắt ngay lập tức chuỗi xử lý (Fail-fast mechanism). Điều này giúp loại bỏ việc phải khai báo `throws` rườm rà ở mọi phương thức, giúp code sạch và dễ đọc hơn.
+    + Sử dụng ValidationChainFactory để thiết lập thứ tự các trạm một cách tập trung. Điều này giúp DocumentProcessor hoàn toàn không còn liên quan đến logic kiểm tra cụ thể, nó chỉ việc gọi lệnh check() và bắt lỗi nếu có. Đặc biệt, thiết kế này giúp các lớp trạm (Handlers) trở nên độc lập tuyệt đối; bản thân các trạm không cần biết mình đứng ở vị trí nào hay ai là người kế tiếp. Khi cần mở rộng, chỉ việc tạo một class mới và đăng ký vào ValidationChainFactory, giúp việc bảo trì thứ tự kiểm duyệt trở nên cực kỳ linh hoạt mà không làm xáo trộn mã nguồn ở các lớp khác.
+  - Kết quả:
+    + Hệ thống cực kỳ linh hoạt: Muốn thêm trạm kiểm tra mới chỉ việc tạo thêm Class và nhét vào Factory, không cần đụng vào code xử lý chính.
+    + Logic rõ ràng: Mỗi lớp chỉ làm đúng một nhiệm vụ kiểm tra duy nhất (tuân thủ SRP).
