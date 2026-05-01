@@ -1,0 +1,15 @@
+{
+  "id": "17ec5afa",
+  "applicantName": "112312",
+  "applicantEmail": "1213@gmail.com",
+  "applicantPhone": "1211221",
+  "officerName": "Cán bộ trực ban",
+  "officerEmail": "officer@tdtu.edu.vn",
+  "officerPhone": "0123456789",
+  "documentType": "DON_XIN_PHEP",
+  "filePath": "server_storage\\17ec5afa_Essay_CV.pdf",
+  "fileExtension": "pdf",
+  "fileSizeKB": 198,
+  "digitalSignature": "1",
+  "status": "DA_TIEP_NHAN"
+}

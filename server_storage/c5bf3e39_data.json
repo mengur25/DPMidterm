@@ -1,0 +1,15 @@
+{
+  "id": "c5bf3e39",
+  "applicantName": "Nguyen Van A",
+  "applicantEmail": "nva@gmail.com",
+  "applicantPhone": "0901234567",
+  "officerName": "Can Bo B",
+  "officerEmail": "cbb@tdtu.edu.vn",
+  "officerPhone": "0987654321",
+  "documentType": "DON_XIN_PHEP",
+  "filePath": "server_storage\\c5bf3e39_dummy_path.pdf",
+  "fileExtension": "pdf",
+  "fileSizeKB": 1024,
+  "digitalSignature": "signature_abc123",
+  "status": "DA_TIEP_NHAN"
+}
