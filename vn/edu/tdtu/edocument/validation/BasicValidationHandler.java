@@ -1,8 +1,8 @@
 package vn.edu.tdtu.edocument.validation;
 
 import java.io.File;
-import java.util.Arrays; // Thêm import này
-import java.util.List; // Thêm import này
+import java.util.Arrays;
+import java.util.List;
 
 import vn.edu.tdtu.edocument.model.Document;
 

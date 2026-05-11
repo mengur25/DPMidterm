@@ -5,20 +5,18 @@ import vn.edu.tdtu.edocument.model.Document;
 public abstract class ValidationHandler {
     protected ValidationHandler nextHandler;
 
-    // Thiết lập trạm tiếp theo và trả về chính trạm đó để viết code dạng chuỗi
-    // (chaining)
+    // Thiết lập trạm tiếp theo
     public ValidationHandler setNext(ValidationHandler nextHandler) {
         this.nextHandler = nextHandler;
         return nextHandler;
     }
 
-    // Luồng thực thi chính
+    // Luồng thực thi
     public void check(Document doc) {
         // 1. Trạm hiện tại thực hiện kiểm tra
         doCheck(doc);
 
-        // 2. Nếu không có lỗi (không bị throw Exception), chuyển hồ sơ sang trạm kế
-        // tiếp
+        // 2. Nếu không có lỗi, chuyển hồ sơ sang trạm kế tiếp
         if (nextHandler != null) {
             nextHandler.check(doc);
         }

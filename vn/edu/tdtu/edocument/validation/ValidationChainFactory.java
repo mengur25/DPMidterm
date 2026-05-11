@@ -7,7 +7,7 @@ public class ValidationChainFactory {
         ValidationHandler security = new SecurityValidationHandler();
         ValidationHandler integrity = new IntegrityValidationHandler();
 
-        // Cấu hình thứ tự mặc định của hệ thống
+        // Cấu hình thứ tự
         basic.setNext(security).setNext(integrity);
 
         return basic;
